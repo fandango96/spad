@@ -1,0 +1,17 @@
+)abbrev package CTASK CodingTask
+++ \spadtype{CodingTask} is a dummy package.
+CodingTask(A) : Exports == Implementation where
+    A : DifferentialRing
+
+    L ==> LinearOrdinaryDifferentialOperator1 A
+
+    Exports == with
+        has_const_coeffs? : L -> Boolean
+        ++ has_const_coeffs?(l) returns true if l is a linear ordinary
+        ++ differential operator with constant coefficients, otherwise returns false.
+
+    Implementation == add
+        has_const_coeffs?(l) ==
+            list := coefficients(l)
+            every?(x +-> D(x) = 0, list)
+

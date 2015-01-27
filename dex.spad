@@ -1,0 +1,82 @@
+)abbrev domain DEX DExpression
+
+D ==> Product(String, List %)
+
+DExpression : MExpressionCategory with
+    differentiate : (%, %) -> %
+  == MExpression add
+    f a ==> a :: OutputForm
+
+    plusD(l : List %, x : %) : % ==
+        r : % := 0
+        for z in l repeat r := r + differentiate(z, x)
+        r
+
+    timesD(l : List %, x : %) : % ==
+        s : % := 0
+        len := #(l)
+        for i in 1..len repeat
+            p : % := 1
+            for z in l for j in 1..len repeat
+                p := p * (if i=j then differentiate(z, x) else z)
+            s := s + p
+        s
+
+    powerD(l : List %, x : %) : % ==
+        #(l) ~= 2 => error "powerD: not exactly 2 arguments"
+        z : % := first l
+        e : % := first rest l
+        not complex? e => error "powerD: second argument is not complex"
+        e*(z^(e-1))*differentiate(z, x)
+
+    powerXD(l : List %, x : %) : % ==
+        #(l) ~= 2 => error "powerXD: not exactly 2 arguments"
+        z : % := first l
+        e : % := first rest l
+        complex? z => log z * z^e * differentiate(e, x)
+        differentiate(exp(log z * e), x)
+
+    chainD(l : List %, x : %, d : % -> %) : % ==
+        #(l) ~= 1 => error "chainD: not exactly one argument"
+        z := first l
+        d(z)*differentiate(z, x)
+
+    nthRootD(l : List %, x : %) : % ==
+        #(l) ~= 2 => error "nthRootD: not exactly two arguments"
+        z := first l
+        e := inv first rest l
+        not complex? e => error "nthRootD: second argument is not complex"
+        e*(z^(e-1))*differentiate(z, x)
+
+    -- exported functions
+    differentiate(z : %, x : %): % ==
+        not variable? x => error "second argument must be a variable"
+        complex? z => 0
+        z = x => 1
+        variable? z => 0
+        d : D := decompose z
+        o : String := first d
+        a : List % := second d
+        o = "+" => plusD(a, x)
+        o = "*" => timesD(a, x)
+        o = "^" => powerD(a, x)
+        o = "%power" => powerXD(a, x)
+        o = "nthRoot" => nthRootD(a, x)
+        o = "sin" => chainD(a, x, cos)
+        o = "cos" => chainD(a, x, t +-> - sin t)
+        o = "exp" => chainD(a, x, exp)
+        o = "log" => chainD(a, x, t +-> 1 / t)
+        o = "tan" => chainD(a, x, t +-> tan(t)^2 + 1)
+        o = "cot" => chainD(a, x, t +-> -cot(t)^2 - 1)
+        o = "asin" => chainD(a, x, t +-> 1/sqrt(1-t^2))
+        o = "acos" => chainD(a, x, t +-> -1/sqrt(1-t^2))
+        o = "atan" => chainD(a, x, t +-> 1/(1+t^2))
+        o = "acot" => chainD(a, x, t +-> -1/(1+t^2))
+        print("differentiate expression: "::OutputForm)
+        print(z::OutputForm)
+        print(((z=x)@Boolean)::OutputForm)
+        print(d::OutputForm)
+        print(o::OutputForm)
+        print(a::OutputForm)
+        error "Cannot differentiate"
+

@@ -1,0 +1,19 @@
+)abbrev package PASCAL Pascal
+Pascal : with (make_pascal : Integer -> Matrix(Integer))
+  == add
+    make_pascal(N : Integer) : Matrix(Integer) ==
+        -- coerce here to NonNegativeInteger because this is what
+        -- 'zero' requires
+        nn := N :: NonNegativeInteger
+        tab := zero(nn, nn)$Matrix(Integer)
+        n : Integer
+        tab(1, 1) := 1
+        for n in 2..nn repeat
+            --Fill row number n
+            k : Integer
+            tab(n, 1) := 1
+            tab(n, n) := 1
+            for k in 2..(n - 1) repeat
+                tab(n, k) := tab(n-1, k) + tab(n-1, k-1)
+        tab
+

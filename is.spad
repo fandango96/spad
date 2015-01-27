@@ -1,0 +1,24 @@
+)abbrev package INTSOL IntegrateSols
+++ \spadtype{IntegrateSols} is a dummy package.
+IntegrateSols(F, UP) : Exports == Implementation where
+    F : Join(Field, CharacteristicZero, RetractableTo Integer, RetractableTo Fraction Integer)
+    UP : UnivariatePolynomialCategory F
+
+    RF ==> Fraction UP
+    L  ==> LinearOrdinaryDifferentialOperator1 RF
+
+    Exports == with
+        integrate_sols : L -> Union(L, List(L))
+        ++ integrate_sols(l) integrates the solutions of a differential operator l.
+
+    Implementation == add
+        import from RationalLODE(F, UP)
+
+        integrate_sols(l) ==
+            a := adjoint(l)
+            rec := ratDsolve(a, 1)
+            rec.particular case "failed" =>
+                l * D()
+            r := leftQuotient(1 - rec.particular::RF * l, D())
+            [1 - r * D(), r]
+

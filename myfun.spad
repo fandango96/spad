@@ -1,0 +1,15 @@
+)abbrev domain MYFUN MyFun
+MyFun(S: SetCategory): MyMonoid with
+    coerce: (S -> S) -> %
+    coerce: % -> (S -> S)
+    elt: (%, S) -> S
+  == add
+    Rep ==> S -> S
+    rep x ==> (x@%) pretend None pretend Rep
+    per x ==> (x@Rep) pretend %
+    coerce(f: S -> S): % == per f
+    coerce(x: %): S -> S == rep x
+    elt(x: %, s: S): S == (rep x) s
+    1: % == per((s: S): S +-> s)
+    ((x: %) * (y: %)): % == per((s: S): S +-> x y s)
+
