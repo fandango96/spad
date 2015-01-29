@@ -12,6 +12,5 @@ CodingTask(A) : Exports == Implementation where
 
     Implementation == add
         has_const_coeffs?(l) ==
-            list := coefficients(l)
-            every?(x +-> D(x) = 0, list)
+            every?((x : A) : Boolean +-> D(x) = 0, coefficients(l))
 
