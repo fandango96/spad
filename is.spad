@@ -1,31 +1,31 @@
 )abbrev package INTSOL IntegrateSols
 ++ \spadtype{IntegrateSols} is a dummy package.
 IntegrateSols(F, L) : Exports == Implementation where
-    F : Join(Field, CharacteristicZero, RetractableTo Integer, RetractableTo Fraction Integer)
+    F : Join(Field, CharacteristicZero, RetractableTo Integer,
+             RetractableTo Fraction Integer)
     L : UnivariateSkewPolynomialCategory F with
         adjoint : % -> %
             ++ adjoint(a) returns the adjoint operator of a.
-        D : () -> %
-            ++ D() provides the operator corresponding to a derivation
-            ++ in the field \spad{F}.
 
     U ==> Union(F, "failed")
     SF ==> (L, F) -> Record(particular : U, basis : List F)
 
     Exports == with
-        integrate_sols : (L, SF) -> Union(L, Record(ltilde : L, r : L))
-            ++ integrate_sols(l, rat_solve) integrates the solutions of an operator l
-            ++ given rat_solve(op, g) that returns \spad{["failed", []]} if the equation
-            ++ \spad{op y = g} has no rational solution. Otherwise, the rat_solve function
-            ++ should return \spad{[f, [y1, ..., ym]]} where f is a particular rational solution
-            ++ and the yi's form a basis for the rational solutions of the homogeneous equation.
+        integrate_sols : (L, SF) -> Record(ltilde : L, r : Union(L, "failed"))
+            ++ integrate_sols(l, rat_solve) integrates the solutions of an
+            ++ operator l given rat_solve(op, g) that returns
+            ++ \spad{["failed", []]} if the equation \spad{op y = g} has no
+            ++ rational solution. Otherwise, the rat_solve function should
+            ++ return \spad{[f, [y1, ..., ym]]} where f is a particular rational
+            ++ solution and the yi's form a basis for the rational solutions of
+            ++ the homogeneous equation.
 
     Implementation == add
         integrate_sols(l, rat_solve) ==
             a := adjoint(l)
             rec := rat_solve(a, 1)
             rec.particular case "failed" =>
-                l * D()
-            rt := leftQuotient(1 - rec.particular::F * l, D())
-            [1 - rt * D(), rt]
+                [l * monomial(1, 1), "failed"]
+            rt := leftQuotient(1 - rec.particular::F * l, monomial(1, 1))
+            [1 - rt * monomial(1, 1), rt]
 
