@@ -24,7 +24,7 @@ CodingTask2(Coeff, Ab, R) : Exports == Implementation where
         convertOp(l3 : L3) ==
             l1 : L1 := 0
             while l3 ~= 0 repeat
-                l1 := l1 + monomial(leadingCoefficient(l3), degree(l3))
+                l1 := l1 + monomial(monomial(1, 1) * leadingCoefficient(l3), degree(l3))
                 l3 := reductum l3
             l1
 
