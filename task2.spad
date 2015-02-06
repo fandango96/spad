@@ -9,22 +9,27 @@ CodingTask2(Coeff, Ab, R) : Exports == Implementation where
     L3 ==> LinearOrdinaryDifferentialOperator3(Coeff, Ab, R)
 
     Exports == with
-        convertOp : L1 -> L3
-            ++ convertOp(l1) converts an operator from LODO1 to LODO3.
+        if R has IntegralDomain then
+            convertOp : L1 -> L3
+                ++ convertOp(l1) converts an operator from LODO1 to LODO3.
         convertOp : L3 -> L1
             ++ convertOp(l3) converts an operator from LODO3 to LODO1.
 
     Implementation == add
-        convertOp(l1 : L1) ==
-            l3 : L3 := 0
-            while l1 ~= 0 repeat
-                l3 := l3 + monomial(leadingCoefficient(l1), degree(l1))
-                l1 := reductum l1
-            l3
+        if R has IntegralDomain then
+            convertOp(l1 : L1) ==
+                l3 : L3 := 0
+                while l1 ~= 0 repeat
+                    l3 := (l3 +
+                          leadingCoefficient(l1) *
+                          ((D() exquo$L3 (monomial(1, 1) * 1)) :: L3)^degree(l1))
+                    l1 := reductum l1
+                l3
         convertOp(l3 : L3) ==
             l1 : L1 := 0
             while l3 ~= 0 repeat
-                l1 := l1 + monomial(monomial(1, 1) * leadingCoefficient(l3), degree(l3))
+                l1 := (l1 + leadingCoefficient(l3) *
+                            ((monomial(1, 1) * 1) * D())^degree(l3))
                 l3 := reductum l3
             l1
 
