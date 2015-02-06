@@ -11,9 +11,17 @@ CodingTask2(Coeff, Ab, R) : Exports == Implementation where
     Exports == with
         if R has IntegralDomain then
             convertOp : L1 -> L3
-                ++ convertOp(l1) converts an operator from LODO1 to LODO3.
+                ++ convertOp(l1) converts an operator l1 from
+                ++ \spadtype{LinearOrdinaryDifferentialOperator1} to
+                ++ \spadtype{LinearOrdinaryDifferentialOperator3} such that the
+                ++ resultant operator gives the same result as the original one
+                ++ on application to an element of domain R.
         convertOp : L3 -> L1
-            ++ convertOp(l3) converts an operator from LODO3 to LODO1.
+            ++ convertOp(l3) converts an operator l3 from
+            ++ \spadtype{LinearOrdinaryDifferentialOperator3} to
+            ++ \spadtype{LinearOrdinaryDifferentialOperator1} such that the
+            ++ resultant operator gives the same result as the original one
+            ++ on application to an element of domain R.
 
     Implementation == add
         if R has IntegralDomain then
