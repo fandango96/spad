@@ -9,13 +9,12 @@ CodingTask2(Coeff, Ab, R) : Exports == Implementation where
     L3 ==> LinearOrdinaryDifferentialOperator3(Coeff, Ab, R)
 
     Exports == with
-        if R has IntegralDomain then
-            convertOp : L1 -> L3
-                ++ convertOp(l1) converts an operator l1 from
-                ++ \spadtype{LinearOrdinaryDifferentialOperator1} to
-                ++ \spadtype{LinearOrdinaryDifferentialOperator3} such that the
-                ++ resultant operator gives the same result as the original one
-                ++ on application to an element of domain R.
+        convertOp : L1 -> L3
+            ++ convertOp(l1) converts an operator l1 from
+            ++ \spadtype{LinearOrdinaryDifferentialOperator1} to
+            ++ \spadtype{LinearOrdinaryDifferentialOperator3} such that the
+            ++ resultant operator gives the same result as the original one
+            ++ on application to an element of domain R.
         convertOp : L3 -> L1
             ++ convertOp(l3) converts an operator l3 from
             ++ \spadtype{LinearOrdinaryDifferentialOperator3} to
@@ -24,15 +23,14 @@ CodingTask2(Coeff, Ab, R) : Exports == Implementation where
             ++ on application to an element of domain R.
 
     Implementation == add
-        if R has IntegralDomain then
-            convertOp(l1 : L1) ==
-                l3 : L3 := 0
-                while l1 ~= 0 repeat
-                    l3 := (l3 +
-                          leadingCoefficient(l1) *
-                          ((D() exquo$L3 (monomial(1, 1) * 1)) :: L3)^degree(l1))
-                    l1 := reductum l1
-                l3
+        convertOp(l1 : L1) ==
+            l3 : L3 := 0
+            while l1 ~= 0 repeat
+                l3 := (l3 +
+                      leadingCoefficient(l1) *
+                      (((recip(monomial(1, 1) * 1$R)) :: R) * D())^degree(l1))
+                l1 := reductum l1
+            l3
         convertOp(l3 : L3) ==
             l1 : L1 := 0
             while l3 ~= 0 repeat
