@@ -1,0 +1,53 @@
+)abbrev package CTASK3 CodingTask3
+++ \spadtype{CodingTask3} is a dummy package.
+CodingTask3(F, UP) : Exports == Implementation where
+    F : Join(AlgebraicallyClosedField, CharacteristicZero,
+             RetractableTo Integer, RetractableTo Fraction Integer)
+    UP : UnivariatePolynomialCategory F
+
+    RF ==> Fraction UP
+    L  ==> LinearOrdinaryDifferentialOperator1 RF
+    L2 ==> LinearOrdinaryDifferentialOperator2(UP, RF)
+
+    Exports == with
+        find_right_factor : (L, L) -> L
+
+    Implementation == add
+        import from InnerCommonDenominator(UP, RF, List UP, List RF)
+        import from PrimitiveRatDE(F, UP, L2, L)
+
+        regular_point : L -> Integer
+        unitlist : (NonNegativeInteger, NonNegativeInteger) -> List F
+
+        regular_point(f) ==
+            a := numer(leadingCoefficient(f) *
+                       commonDenominator(coefficients(f)))
+            coefficient(a, 0) ~= 0 => 0
+            for i in 1.. repeat
+                a(j := i::F) ~= 0 => return i
+                a(-j) ~= 0 => return(-i)
+
+        unitlist(i, q) ==
+            v := new(q, 0)$Vector(F)
+            v.i := factorial(i-1) :: F
+            parts v
+
+        find_right_factor(f, r) ==
+            p := regular_point(f)
+            op := splitDenominator(f, [0]).eq
+            uts := UnivariateTaylorSeries(F, new()$Symbol, p :: F)
+            tools := UTSodetools(F, UP, L2, uts)
+            solver := UnivariateTaylorSeriesODESolver(F, uts)
+            func := LODO2FUN(op)$tools
+            q := degree op
+            bas := [UTS2UP(ode(func, unitlist(i, q))$solver, 2*q)$tools
+                    for i in 1..q]
+            list := [RF2UTS(r(b :: RF))$tools for b in bas]
+            coeffs := [[(coefficient(l, i) :: Polynomial(F)) :: Fraction(Polynomial(F))
+                        for i in 0..q-1] for l in list]
+            mat : Matrix(Fraction(Polynomial(F))) := matrix(coeffs)
+            cpol := characteristicPolynomial(mat)$EigenPackage(F)
+            eigenvalue := (((zerosOf(cpol).1) :: UP) :: RF) :: L
+            rhf := rightGcd(f, r - eigenvalue)
+            rhf
+
