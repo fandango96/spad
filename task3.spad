@@ -11,6 +11,8 @@ CodingTask3(F, UP) : Exports == Implementation where
 
     Exports == with
         find_right_factor : (L, L) -> L
+        ++ find_right_factor(f, r) finds a right factor of f given a nontrivial
+        ++ solution to the mixed equation \spad{f r + l f = 0}.
 
     Implementation == add
         import from InnerCommonDenominator(UP, RF, List UP, List RF)
