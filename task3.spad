@@ -10,9 +10,11 @@ CodingTask3(F, UP) : Exports == Implementation where
     L2 ==> LinearOrdinaryDifferentialOperator2(UP, RF)
 
     Exports == with
-        find_right_factor : (L, L) -> L
-        ++ find_right_factor(f, r) finds a right factor of f given a nontrivial
-        ++ solution to the mixed equation \spad{f r + l f = 0}.
+        find_right_factor : (L, L, Polynomial(F) -> Factored(Polynomial(F))) -> L
+        ++ find_right_factor(f, r, factorizer) finds a right factor of f given
+        ++ a nontrivial solution to the mixed equation \spad{f r + l f = 0}
+        ++ given a function factorizer(x) that returns the factorization of x
+        ++ into irreducibles.
 
     Implementation == add
         import from InnerCommonDenominator(UP, RF, List UP, List RF)
@@ -34,7 +36,7 @@ CodingTask3(F, UP) : Exports == Implementation where
             v.i := factorial(i-1) :: F
             parts v
 
-        find_right_factor(f, r) ==
+        find_right_factor(f, r, factorizer) ==
             p := regular_point(f)
             op := splitDenominator(f, [0]).eq
             uts := UnivariateTaylorSeries(F, new()$Symbol, p :: F)
@@ -42,14 +44,20 @@ CodingTask3(F, UP) : Exports == Implementation where
             solver := UnivariateTaylorSeriesODESolver(F, uts)
             func := LODO2FUN(op)$tools
             q := degree op
-            bas := [UTS2UP(ode(func, unitlist(i, q))$solver, 2*q)$tools
+            bas := [ode(func, unitlist(i, q))$solver
                     for i in 1..q]
-            list := [RF2UTS(r(b :: RF))$tools for b in bas]
+            apr : LinearOrdinaryDifferentialOperator1(uts) := 0
+            rtmp := r
+            while rtmp ~= 0 repeat
+                apr := (apr +
+                        monomial(RF2UTS(leadingCoefficient(rtmp))$tools, degree(rtmp)))
+                rtmp := reductum rtmp
+            list := [apr(b) for b in bas]
             coeffs := [[(coefficient(l, i) :: Polynomial(F)) :: Fraction(Polynomial(F))
                         for i in 0..q-1] for l in list]
             mat : Matrix(Fraction(Polynomial(F))) := matrix(coeffs)
             cpol := characteristicPolynomial(mat)$EigenPackage(F)
-            eigenvalue := (((zerosOf(cpol).1) :: UP) :: RF) :: L
+            eigenvalue := ((zeroOf(nthFactor(factorizer(cpol), 1)) :: UP) :: RF) :: L
             rhf := rightGcd(f, r - eigenvalue)
             rhf
 
