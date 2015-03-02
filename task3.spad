@@ -8,9 +8,10 @@ CodingTask3(F, UP) : Exports == Implementation where
     RF ==> Fraction UP
     L  ==> LinearOrdinaryDifferentialOperator1 RF
     L2 ==> LinearOrdinaryDifferentialOperator2(UP, RF)
+    SUP ==> SparseUnivariatePolynomial(F)
 
     Exports == with
-        find_right_factor : (L, L, Polynomial(F) -> Factored(Polynomial(F))) -> L
+        find_right_factor : (L, L, SUP -> Factored(SUP)) -> L
         ++ find_right_factor(f, r, factorizer) finds a right factor of f given
         ++ a nontrivial solution to the mixed equation \spad{f r + l f = 0}
         ++ given a function factorizer(x) that returns the factorization of x
@@ -53,10 +54,10 @@ CodingTask3(F, UP) : Exports == Implementation where
                         monomial(RF2UTS(leadingCoefficient(rtmp))$tools, degree(rtmp)))
                 rtmp := reductum rtmp
             list := [apr(b) for b in bas]
-            coeffs := [[(coefficient(l, i) :: Polynomial(F)) :: Fraction(Polynomial(F))
+            coeffs := [[coefficient(l, i)
                         for i in 0..q-1] for l in list]
-            mat : Matrix(Fraction(Polynomial(F))) := matrix(coeffs)
-            cpol := characteristicPolynomial(mat)$EigenPackage(F)
+            mat : Matrix(F) := matrix(coeffs)
+            cpol := characteristicPolynomial(mat)$InnerEigenPackage(F)
             eigenvalue := ((zeroOf(nthFactor(factorizer(cpol), 1)) :: UP) :: RF) :: L
             rhf := rightGcd(f, r - eigenvalue)
             rhf
