@@ -1,0 +1,491 @@
+)abbrev package LODOFN LinearOrdinaryDifferentialOperatorFactorizerNew
+++ Description:
+++ \spadtype{LinearOrdinaryDifferentialOperatorFactorizerNew} provides a
+++ factorizer for linear ordinary differential operators whose coefficients
+++ are rational functions.
+++ Keywords: differential equation, ODE, LODO, factoring
+LinearOrdinaryDifferentialOperatorFactorizerNew(F, UP, var, cen) : Exports == Impl where
+  F : Join(Field, CharacteristicZero,
+           RetractableTo Integer, RetractableTo Fraction Integer)
+  UP : UnivariatePolynomialCategory F
+  var : Symbol
+  cen : F
+
+  RF ==> Fraction UP
+  L  ==> LinearOrdinaryDifferentialOperator1 RF
+  L2 ==> LinearOrdinaryDifferentialOperator2(UP, RF)
+  L3 ==> LinearOrdinaryDifferentialOperator3(F, UP, RF)
+  UTS ==> UnivariateTaylorSeries(F, var, cen)
+  US ==> UnivariateLaurentSeries(F, var, cen)
+  LL ==> LinearOrdinaryDifferentialOperator3(F, UTS, US)
+  PO ==> Record(x : Integer, y : Integer)
+  FZ ==> Fraction Integer
+  FA ==> Record(factor : UP, exponent : Integer)
+  F2 ==> Record(Qt : LL, Rt : LL)
+  NL ==> Record(main : F2, nf : F2, error : LL)
+  LW ==> Record(lr : NL, n_lifts : PositiveInteger)
+  TERM ==> Record(k : Integer, c : F)
+  LC ==> Record(llc : List Stream TERM, rlc : List Stream TERM)
+  LAU ==> Record(laurl : List US, laurr : List US)
+
+  Exports ==> with
+    testnp : L3 -> List(Record(point : PO, slope : FZ, npoly : UP))
+    ++ test function.
+    testfn : (L3, UP -> Factored(UP), String) -> List LL
+    ++ test function.
+    testf2 : (L3, UP, FZ) -> F2
+    ++ test function.
+    testll : (FZ, L3, UP, UP, FZ, Integer) -> LAU
+    ++ test function.
+    testlc : (FZ, L3, UP, UP, FZ, Integer) -> LC
+    ++ test function.
+    testln : (FZ, L3, UP, UP, FZ, Integer) -> NL
+    ++ test function.
+    testlw : (FZ, L3, UP, UP, FZ, Integer) -> Stream F2
+    ++ test function.
+    testcp : (L3, FZ, Integer) -> LL
+    ++ test function.
+    testco : (L3, FZ, Integer) -> Boolean
+    ++ test function.
+    testcx : (L3, FZ) -> UP
+    ++ test function.
+    testpd : UP -> LL
+    ++ test function.
+
+  Impl ==> add
+    import from IntegerRetractions(F)
+    import from StreamFunctions2(LW, F2)
+
+    convertL3toLL : L3 -> LL
+    newtonpolygonPoints : LL -> List PO
+    newtonpolygon : LL -> List(Record(point : PO, slope : FZ, npoly : UP))
+    factor_newton : (LL, UP -> Factored(UP), String) -> List LL
+    factor_newton2 : (LL, UP, Record(point : PO, slope : FZ, npoly : UP)) -> F2
+    laurent_op : (List US, Integer) -> LL
+    list_laurent : (LC, Integer, Integer) -> LAU
+    list_laurentop : (List Stream TERM, Integer) -> List US
+    listream_coefs : (Stream F2, Integer, Integer) -> LC
+    listream_coefsop : (Stream LL, Integer) -> List Stream TERM
+    lift_newton : (FZ, LL, UP, UP, FZ, Integer, F2, LL, PositiveInteger) -> NL
+    ln_wrapper : (FZ, LL, UP, UP, FZ, Integer) -> Stream F2
+    coefs_poly : (LL, FZ, Integer) -> UP
+    coefs_operator : (UP, FZ, Integer) -> LL
+    coeffx : (LL, FZ) -> UP
+    plug_delta : UP -> LL
+
+    convertL3toLL(f) ==
+        tools := UTSodetools(F, UP, L2, UnivariateTaylorSeries(F, var, cen))
+        apf : LinearOrdinaryDifferentialOperator3(F, UTS, US) := 0
+        ftmp := f
+        while ftmp ~= 0 repeat
+            lc := leadingCoefficient(ftmp)
+            den := UP2UTS(denom lc) :: US
+            apf := (apf +
+                    monomial((UP2UTS(numer lc)$tools *
+                    recip(den) :: US), degree(ftmp)))
+            ftmp := reductum ftmp
+        apf
+
+-- newtonpolygonPoints takes a LinearOrdinaryDifferentialOperator3 having
+-- Laurent series coefficients as input and returns the coordinates of the
+-- extreme points of the Newton polygon.
+    newtonpolygonPoints(f) ==
+        ftmp := f
+        points : List PO := []
+        yzero := order(leadingCoefficient(ftmp))
+        while ftmp ~= 0 repeat
+            xv := degree(ftmp)
+            yv := order(leadingCoefficient(ftmp))
+            if xv ~= 0 then
+                points := cons([xv, yv], points)
+            yzero := min(yzero, yv)
+            ftmp := reductum ftmp
+        points := cons([0, yzero], points)
+        npg : List PO := [points.2, points.1]
+        points3 := rest(rest(points))
+        for i in points3 repeat
+            ccw : Boolean := true
+            while #npg > 1 and ccw repeat
+                p1 := npg.2
+                p2 := npg.1
+                sb1 := (p2.x - p1.x) * (i.y - p1.y)
+                sb2 := (p2.y - p1.y) * (i.x - p1.x)
+                ccw := (sb1 - sb2) <= 0
+                if ccw then
+                    npg := rest(npg)
+            npg := cons(i, npg)
+        reverse!(npg)
+
+--    newtonpolygonPoints(f) ==
+--        n := degree(f)
+--        vals := [order(coefficient(f, i), order(leadingCoefficient(f)))
+--                 for i in 0..n]
+--        powd : Integer := 0
+--        val_powd := vals.1
+--        vals1 := vals.1
+--        for i in vals | i ~= vals1 repeat
+--            val_powd := min(val_powd, i)
+--        npg : List PO := [[powd, val_powd]]
+--        while powd < n repeat
+--            m := (vals(powd+2) - val_powd) :: Fraction Integer
+--            for j in 2..(n - powd) repeat
+--                m := min(m, (vals(powd+j+1) - val_powd) / j)
+--            i : Integer := n
+--            while (vals(i+1)-val_powd) :: Fraction Integer ~= (i-powd)*m repeat
+--                i := i - 1
+--            powd := i
+--            val_powd := vals(i+1)
+--            npg := append(npg, [[i, vals(i+1)]])
+--        npg
+
+-- newtonpolygon takes a LinearOrdinaryDifferentialOperator3 having Laurent
+-- series coefficients as input and returns the coordinates of the extreme
+-- points of the Newton polygon, the slope of a point to the next point and the
+-- Newton polynomial of this slope.
+    newtonpolygon(f) ==
+        npg : List PO := newtonpolygonPoints(f)
+        res : List(Record(point : PO, slope : FZ, npoly : UP)) := []
+        restl := rest(npg)
+        for i in npg for nxt in restl repeat
+            -- now we compute the Newton polynomial of slope number i
+            slop : FZ := (nxt.y - i.y) / (nxt.x - i.x)
+            npol : UP := 0
+            for j in 0..qcoerce((nxt.x - i.x) quo denom(slop)) repeat
+                ind : NonNegativeInteger := qcoerce(denom(slop) * j + i.x)
+                opc := coefficient(f, ind)
+                lsc := coefficient(opc, j * numer(slop) + i.y)
+                npol := npol + monomial(lsc, j)
+            res := append(res, [[i, slop, npol]])
+        res
+
+    testnp(f) ==
+        newtonpolygon(convertL3toLL(f))
+
+    factor_newton(f, factorizer, option) ==
+        if degree(f) <= 1 then
+            return [f]
+        np := newtonpolygon(f)
+        res : List LL := []
+        unsafe : Set FA
+        for k in np repeat
+            npol := k.npoly
+            v := factors(factorizer(npol))
+            if k.slope ~= 0 then
+                v := [[il.factor ^ qcoerce(il.exponent), 0] for il in v]
+            else
+                -- regular singular case, we compute the unsafe factors
+                unsafe := set []
+                -- n_unsafe is the number of factors with an exponent that is
+                -- the exponent of this factor i minus a positive integer.
+                n_unsafe : Table (FA, Integer) := table()
+                semi : Table(FA, UP) := table()
+                for i in v repeat
+                    n_unsafe(i) := 0
+                    semi(i) := i.factor ^ qcoerce(i.exponent)
+                for i in v for ii in 1..(#v)-1 repeat
+                    restl := rest(v, ii)
+                    vif : UP := i.factor
+                    dvif := degree(vif)
+                    for j in restl repeat
+                        vjf : UP := j.factor
+                        if dvif = degree(vjf) then
+                            d := qcoerce(dvif - 1)
+                            e : F := coefficient(vif, d) - coefficient(vjf, d)
+                            e := e / ((dvif :: Integer) :: F)
+                            if integer?(e) and e ~= 0 then
+                                ie := integer(e)
+                                id := d :: Integer
+                                quot := (ie quo (id + 1)) :: UP
+                                newx : UP := monomial(1,1) + quot
+                                sbt := eval(vjf, monomial(1,1), newx)
+                                (vif - sbt) ~= 0 => "iterate"
+                                if ie > 0 then
+                                    unsafe := union(unsafe, i)
+                                    n_unsafe(j) := (n_unsafe(j)+i.exponent)
+                                    semi(j) := (semi(j) * vif ^
+                                                qcoerce(i.exponent))
+                                else
+                                    unsafe := union(unsafe, j)
+                                    n_unsafe(i) := (n_unsafe(i)+j.exponent)
+                                    semi(i) := (semi(i) * vjf ^
+                                                qcoerce(j.exponent))
+                v := members(difference(set(v), unsafe))
+                if option = "semireg" then
+                    v := [[semi(i), 1] for i in v]
+            -- now v contains the safe right factors of slope number k
+            slo := k.slope
+            if degree(v(1).factor) * denom(slo) = degree(f) then
+                -- f allows no coprime index 1 factorization
+                return [f]
+            for i in v repeat
+                jl : F2 := factor_newton2(f, i.factor, k)
+                if option = "alg factor" then
+                    return [jl.Rt]
+                else if option = "split over k((x))" then
+                    return append(factor_newton(jl.Qt, factorizer, option),
+                                  [jl.Rt])
+                res := append(res, [jl.Rt])
+        res
+
+    testfn(f, factorizer, option) ==
+        factor_newton(convertL3toLL(f), factorizer, option)
+
+-- this is a work in progress.
+    factor_newton2(f, r, l) ==
+        slop := l.slope
+        ycd : Integer := l.point.y
+        xcd : Integer := l.point.x
+        npol := l.npoly
+        shift := min(0, ycd :: FZ + (degree(f) - xcd) * slop)
+        -- we will compute the newton polynomial of the left factor
+        npo : UP := monomial(1, qcoerce(xcd))
+        mlr : UP := eval((npol quo r),monomial(1,1),monomial(1,qcoerce(denom(slop))))
+        npo := npo * mlr
+        npor : UP := eval(r, monomial(1, 1), monomial(1, qcoerce(denom(slop))))
+        ordr := degree(r) * denom(slop)
+        ordl := degree(f) - ordr
+        -- this number (20) has been arbitrarily chosen : will be modified soon
+        -- lnr := lift_newton(slop, f, npo, npor, shift, ordr, 20)
+        -- [lnr.Qt, lnr.Rt]
+        lwr := ln_wrapper(slop, f, npo, npor, shift, ordr)
+        lcr := listream_coefs(lwr, ordl, ordr)
+        llr := list_laurent(lcr, ordl, ordr)
+        left := laurent_op(llr.laurl, ordl)
+        right := laurent_op(llr.laurr, ordr)
+        [left, right]
+
+    testf2(f, r, slop) ==
+        np := newtonpolygon(convertL3toLL(f))
+        l : Record(point : PO, slope : FZ, npoly : UP)
+        for i in np repeat
+            if i.slope = slop then
+                l := i
+        factor_newton2(convertL3toLL(f), r, l)
+
+    laurent_op(llaur, dgf) ==
+        f : LL := 0
+        for i in 0..dgf repeat
+            f := f + monomial(llaur.(i + 1), i)
+        f
+
+    list_laurent(lsc, dgl, dgr) ==
+        laurel := list_laurentop(lsc.llc, dgl)
+        laurer := list_laurentop(lsc.rlc, dgr)
+        [laurel, laurer]
+
+    testll(slop, f, l_low, r_low, shift, dgr) ==
+        lwr := ln_wrapper(slop, convertL3toLL(f), l_low, r_low, shift, dgr)
+        lcr := listream_coefs(lwr, degree(f) - dgr, dgr)
+        list_laurent(lcr, degree(f) - dgr, dgr)
+
+    list_laurentop(lsc, dgf) ==
+        res : List US := []
+        for i in 0..dgf repeat
+            res := append(res, [series(lsc.(i + 1))])
+        res
+
+    listream_coefs(slr, dgl, dgr) ==
+        sle := map((lr : F2) : LL +-> lr.Qt, slr)$StreamFunctions2(F2, LL)
+        lsc := listream_coefsop(sle, dgl)
+        sre := map((lr : F2) : LL +-> lr.Rt, slr)$StreamFunctions2(F2, LL)
+        rsc := listream_coefsop(sre, dgr)
+        [lsc, rsc]
+
+    testlc(slop, f, l_low, r_low, shift, dgr) ==
+        lwr := ln_wrapper(slop, convertL3toLL(f), l_low, r_low, shift, dgr)
+        listream_coefs(lwr, degree(f) - dgr, dgr)
+
+    listream_coefsop(sfe, dgf) ==
+        res : List Stream TERM := []
+        for i in 0..dgf-1 repeat
+            fc := map((x : LL) : US +-> removeZeroes(coefficient(x, i)),
+                      sfe)$StreamFunctions2(LL, US)
+            new_term := map((x : US) : Stream TERM +-> (
+                            x = 0 => empty();
+                            dgx := degree(x);
+                            trx := taylorRep(x);
+                            cx := coefficients(trx);
+                            [[dgx, frst(cx)]] :: Stream TERM),
+                            fc)$StreamFunctions2(US, Stream TERM)
+            new_st := concat(new_term)$StreamFunctions1(TERM)
+            res := append(res, [new_st])
+        dgc := [[[0$Integer, 1$F]] :: Stream TERM]
+        append(res, dgc)
+
+    lift_newton(slop, ff, l_low, r_low, shift, dgr, v, ei, n_l) ==
+        dgl := degree(ff) - dgr
+        li : LL := v.Qt
+        ri : LL := v.Rt
+        if slop = 0 then
+            -- regular singular case
+            i := n_l-1
+            r_extra : LL
+            l_extra : LL
+            if i = 0 then
+                r_extra := plug_delta(r_low)
+                l_extra := (plug_delta(l_low) * monomial(1,
+                                                retract(shift)@Integer)$US)
+            else
+                sl_low := eval(l_low, monomial(1,1), monomial(1,1)+i :: UP)
+                s := extendedEuclidean(r_low, sl_low)
+                if s.generator ~= 1 then
+                    error "unsafe factor"
+                c1 := s.coef1
+                c2 := s.coef2
+                pi := coeffx(ei, i :: FZ + shift)
+                pr_extra := -((c2 * pi) rem r_low)
+                r_extra := plug_delta(pr_extra)
+                pl_extra := (pi + pr_extra * sl_low) quo r_low
+                l_extra := plug_delta(pl_extra)
+                l_extra := -(monomial(1, i + retract(shift)@Integer)$US *
+                             l_extra)
+                r_extra := monomial(1, i)$US * r_extra
+            li := li + l_extra
+            ei := ei + l_extra * ri + li * r_extra
+            ri := ri + r_extra
+        else
+            s := extendedEuclidean(r_low, l_low, 1) :: Record(coef1 : UP, coef2 : UP)
+            c1 := s.coef1
+            c2 := s.coef2
+            le : Integer := denom(slop) * retract(shift)@Integer
+            le := le - numer(slop) * dgl
+            re : Integer := -(numer(slop) * dgr)
+            fe : Integer := denom(slop) * retract(shift)@Integer
+            fe := fe - numer(slop) * degree(ff)
+            for i in (n_l-1)*denom(slop)..n_l*denom(slop)-1 repeat
+                r_extra : LL
+                l_extra : LL
+                if i = 0 then
+                    r_extra := coefs_operator(r_low, slop, re)
+                    l_extra := coefs_operator(l_low, slop, le)
+                else
+                    pi := coefs_poly(ei, slop, i + fe)
+                    pr_extra := (c2 * pi) rem r_low
+                    pl_extra := pi - pr_extra * l_low
+                    pl_extra := -(pl_extra quo r_low)
+                    l_extra := coefs_operator(pl_extra, slop, i + le)
+                    r_extra := coefs_operator(-(pr_extra), slop, i + re)
+                li := li + l_extra
+                ei := ei + l_extra * ri + li * r_extra
+                ri := ri + r_extra
+        [[li - v.Qt, ri - v.Rt], [li, ri], ei]
+
+    testln(slop, f, l_low, r_low, shift, dgr) ==
+        v : F2 := [0, 0]
+        ei := -convertL3toLL(f)
+        for i in 1..5 repeat
+            lnr := lift_newton(slop, convertL3toLL(f), l_low, r_low, shift,
+                               dgr, v, ei, qcoerce(i))
+            print(lnr.main.Qt :: OutputForm)
+            print(lnr.main.Rt :: OutputForm)
+            v := lnr.nf
+            ei := lnr.error
+        lnr
+
+    ln_wrapper(slop, f, l_low, r_low, shift, dgr) ==
+        lni : NL := [[0, 0], [0, 0], -f]
+        n_li : PositiveInteger := 1
+        lni := lift_newton(slop, f, l_low, r_low, shift, dgr, lni.nf,
+                           lni.error, n_li)
+        all : Stream LW := stream((rec : LW) : LW +-> (
+        lnr := rec.lr;
+        n_l := rec.n_lifts + 1;
+        lnr := lift_newton(slop, f, l_low, r_low, shift, dgr, lnr.nf,
+                           lnr.error, n_l);
+        [lnr, n_l]), [lni, n_li])
+        res := map((rec : LW) : F2 +-> rec.lr.main, all)
+        res
+
+    testlw(slop, f, l_low, r_low, shift, dgr) ==
+        ln_wrapper(slop, convertL3toLL(f), l_low, r_low, shift, dgr)
+
+    coefs_poly(f, slop, i) ==
+        nsi := extendedEuclidean(numer(slop), denom(slop)).coef1
+        start_D := positiveRemainder(-i * nsi, denom(slop))
+        start_x := start_D * slop + i /$FZ denom(slop)
+        res : UP := 0
+        for j in 0..floor(degree(f) /$FZ denom(slop)) repeat
+            fc := coeffx(f, start_x + numer(slop) * j :: FZ)
+            npc := coefficient(fc, qcoerce(start_D + j * denom(slop)))
+            res := res + monomial(npc, qcoerce(start_D + j * denom(slop)))
+        res
+
+    testcp(f, slop, i) ==
+        coefs_operator(coefs_poly(convertL3toLL(f), slop, i), slop, i)
+
+    coefs_operator(np, slop, i) ==
+        nsi := extendedEuclidean(numer(slop), denom(slop)).coef1
+        start_D := positiveRemainder(-i * nsi, denom(slop))
+        start_x := retract(start_D * slop + i /$FZ denom(slop))@Integer
+        res : LL := 0
+        for j in 0..ceiling(degree(np) /$FZ denom(slop)) repeat
+            npc := coefficient(np, qcoerce(start_D + j * denom(slop)))
+            sc := monomial(npc, start_x + numer(slop) * j)
+            res := res + monomial(sc, qcoerce(start_D + j * denom(slop)))
+        res
+
+    testco(f, slop, i) ==
+        np := coefs_poly(convertL3toLL(f), slop, i)
+        coefs_poly(coefs_operator(np, slop, i), slop, i) = np
+
+    coeffx(f, e) ==
+        ftmp := f
+        ex := retract(e)@Integer
+        res : UP := 0
+        while ftmp ~= 0 repeat
+            lc := leadingCoefficient(ftmp)
+            dg := degree(ftmp)
+            res := res + monomial(coefficient(lc, ex), dg)
+            ftmp := reductum ftmp
+        res
+
+    testcx(f, e) ==
+        coeffx(convertL3toLL(f), e)
+
+    plug_delta(np) ==
+        f : LL := 0
+        nptmp := np
+        while nptmp ~= 0 repeat
+            lc := leadingCoefficient(nptmp)
+            dg := degree(nptmp)
+            f := f + monomial(lc :: US, dg)
+            nptmp := reductum nptmp
+        f
+
+    testpd(np) ==
+        plug_delta(np)
+
+--Copyright (c) 1991-2002, The Numerical ALgorithms Group Ltd.
+--All rights reserved.
+--
+--Redistribution and use in source and binary forms, with or without
+--modification, are permitted provided that the following conditions are
+--met:
+--
+--    - Redistributions of source code must retain the above copyright
+--      notice, this list of conditions and the following disclaimer.
+--
+--    - Redistributions in binary form must reproduce the above copyright
+--      notice, this list of conditions and the following disclaimer in
+--      the documentation and/or other materials provided with the
+--      distribution.
+--
+--    - Neither the name of The Numerical ALgorithms Group Ltd. nor the
+--      names of its contributors may be used to endorse or promote products
+--      derived from this software without specific prior written permission.
+--
+--THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
+--IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
+--TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
+--PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
+--OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+--EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
+--PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
+--PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
+--LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
+--NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
+--SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+-- Compile order for the differential equation solver:
+-- oderf.spad  odealg.spad  nlode.spad  nlinsol.spad  riccati.spad
+-- kovacic.spad  lodof.spad  odeef.spad
